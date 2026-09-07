@@ -139,3 +139,12 @@
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #ffffff; color: #17263f; }
 .leaflet-tooltip { font-family: 'DM Sans', sans-serif; }
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
