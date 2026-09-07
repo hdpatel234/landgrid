@@ -171,7 +171,42 @@ function generatePlots(): Plot[] {
   return plots;
 }
 
-const allPlots = generatePlots();
+function getAllPlots(): Plot[] {
+  const generated = generatePlots();
+  let result = generated;
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('landgrid_custom_plots');
+    if (saved) {
+      try {
+        const customAdminPlots = JSON.parse(saved);
+        const mappedCustom: Plot[] = customAdminPlots.map((p: any) => ({
+          id: p.id,
+          number: p.number,
+          sector: p.sector || 'Phase 1 - North Greens',
+          status: p.status || 'Available',
+          facing: p.facing || 'East',
+          road: p.road || "33' Road",
+          area: p.areaSqFt || 1650,
+          price: p.price || 5200000,
+          type: p.type || 'Standard',
+          coordinates: p.coordinates,
+          x3d: 0,
+          z3d: 0,
+          w3d: 20,
+          d3d: 20
+        }));
+        result = [...mappedCustom, ...generated];
+      } catch {
+        result = generated;
+      }
+    }
+    const deletedIds: string[] = JSON.parse(localStorage.getItem('landgrid_deleted_plot_ids') || '[]');
+    result = result.filter((p) => !deletedIds.includes(p.id));
+  }
+  return result;
+}
+
+const allPlots = getAllPlots();
 const formatPrice = (price: number) => `₹${(price / 10000000).toFixed(2)} Cr`;
 const formatCompactPrice = (price: number) => `₹${(price / 100000).toFixed(1)}L`;
 const initials = (name: string) => name.split(' ').map((part) => part[0]).slice(0, 2).join('');

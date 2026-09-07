@@ -30,6 +30,8 @@ interface AdminContextType {
   // Plot Actions
   updatePlotStatus: (plotId: string, status: PlotAdmin['status'], note?: string) => void;
   addPlot: (plot: Partial<PlotAdmin>) => void;
+  deletePlot: (plotId: string) => void;
+  clearAllPlots: () => void;
   updatePlotGeometry: (plotId: string, coords: [number, number][]) => void;
 
   // Enquiry & Booking Actions
@@ -42,6 +44,80 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+// Helper to load plots with localStorage custom plots & deleted plot filters
+const getInitialPlots = (): PlotAdmin[] => {
+  if (typeof window !== 'undefined' && localStorage.getItem('landgrid_clear_all') === 'true') {
+    const saved = localStorage.getItem('landgrid_custom_plots');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  const generatedPlots: PlotAdmin[] = [];
+  const statuses: PlotAdmin['status'][] = ['Available', 'On Hold', 'Booked', 'Registration Completed', 'Sold', 'Blocked'];
+  const facings = ['North', 'South', 'East', 'West'];
+  const roads = ["30' Road", "33' Road", "40' Road", "Proposed 100' Wide Road"];
+
+  for (let i = 1; i <= 120; i++) {
+    const row = Math.floor((i - 1) / 10);
+    const col = (i - 1) % 10;
+    const baseLat = 17.2470 + row * 0.00045;
+    const baseLng = 78.4485 + col * 0.00055;
+    const status = statuses[i % statuses.length];
+    const areaSqFt = 1500 + (i % 5) * 150;
+
+    generatedPlots.push({
+      id: `plot-${i}`,
+      number: i,
+      projectId: 'project-1',
+      projectName: 'Aanvi Heights',
+      developerId: 'dev-1',
+      developerName: 'Sreeni Groups',
+      sector: `Phase ${Math.floor(i / 20) + 1}`,
+      status,
+      facing: facings[i % 4],
+      road: roads[i % 4],
+      areaSqFt,
+      areaSqYd: Math.round(areaSqFt / 9),
+      price: areaSqFt * 3200,
+      type: i % 5 === 0 ? 'Corner' : i % 7 === 0 ? 'Premium' : 'Standard',
+      coordinates: [
+        [baseLat, baseLng],
+        [baseLat + 0.00035, baseLng],
+        [baseLat + 0.00035, baseLng + 0.00048],
+        [baseLat, baseLng + 0.00048]
+      ],
+      history: [
+        { date: '2026-08-01', from: 'Draft', to: 'Available', user: 'System', note: 'Plot added to inventory' }
+      ],
+      viewsCount: 140 + i * 3,
+      enquiriesCount: 12 + (i % 8)
+    });
+  }
+
+  if (typeof window !== 'undefined') {
+    const deletedIds: string[] = JSON.parse(localStorage.getItem('landgrid_deleted_plot_ids') || '[]');
+    const saved = localStorage.getItem('landgrid_custom_plots');
+    let allPlots = generatedPlots;
+    if (saved) {
+      try {
+        const custom: PlotAdmin[] = JSON.parse(saved);
+        allPlots = [...custom, ...generatedPlots];
+      } catch {
+        // use base generatedPlots
+      }
+    }
+    return allPlots.filter((p) => !deletedIds.includes(p.id));
+  }
+
+  return generatedPlots;
+};
+
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [developers, setDevelopers] = useState<DeveloperAdmin[]>(initialDevelopers);
   const [projects, setProjects] = useState<ProjectAdmin[]>(initialProjects);
@@ -50,56 +126,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<UserAdmin[]>(initialUsers);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
 
-  // Generate initial plots list for admin (combines Aanvi Heights and additional projects)
-  const [plots, setPlots] = useState<PlotAdmin[]>(() => {
-    const generatedPlots: PlotAdmin[] = [];
-    const statuses: PlotAdmin['status'][] = ['Available', 'On Hold', 'Booked', 'Registration Completed', 'Sold', 'Blocked'];
-    const facings = ['North', 'South', 'East', 'West'];
-    const roads = ["30' Road", "33' Road", "40' Road", "Proposed 100' Wide Road"];
-
-    let idCount = 1;
-
-    // Generate plots for Project 1 (Aanvi Heights - 120 plots)
-    for (let i = 1; i <= 120; i++) {
-      const row = Math.floor((i - 1) / 10);
-      const col = (i - 1) % 10;
-      const baseLat = 17.2470 + row * 0.00045;
-      const baseLng = 78.4485 + col * 0.00055;
-      const status = statuses[i % statuses.length];
-      const areaSqFt = 1500 + (i % 5) * 150;
-
-      generatedPlots.push({
-        id: `plot-${i}`,
-        number: i,
-        projectId: 'project-1',
-        projectName: 'Aanvi Heights',
-        developerId: 'dev-1',
-        developerName: 'Sreeni Groups',
-        sector: `Phase ${Math.floor(i / 20) + 1}`,
-        status,
-        facing: facings[i % 4],
-        road: roads[i % 4],
-        areaSqFt,
-        areaSqYd: Math.round(areaSqFt / 9),
-        price: areaSqFt * 3200,
-        type: i % 5 === 0 ? 'Corner' : i % 7 === 0 ? 'Premium' : 'Standard',
-        coordinates: [
-          [baseLat, baseLng],
-          [baseLat + 0.00035, baseLng],
-          [baseLat + 0.00035, baseLng + 0.00048],
-          [baseLat, baseLng + 0.00048]
-        ],
-        history: [
-          { date: '2026-08-01', from: 'Draft', to: 'Available', user: 'System', note: 'Plot added to inventory' }
-        ],
-        viewsCount: 140 + i * 3,
-        enquiriesCount: 12 + (i % 8)
-      });
-      idCount++;
-    }
-
-    return generatedPlots;
-  });
+  const [plots, setPlots] = useState<PlotAdmin[]>(getInitialPlots);
 
   const logAction = (action: string, entity: string, details: string) => {
     const newLog: ActivityLog = {
@@ -202,22 +229,25 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePlotStatus = (plotId: string, status: PlotAdmin['status'], note = 'Status changed by platform administrator') => {
-    setPlots((prev) => prev.map((plot) => {
-      if (plot.id === plotId) {
-        const newHistory = [
-          ...plot.history,
-          { date: new Date().toISOString().replace('T', ' ').slice(0, 16), from: plot.status, to: status, user: 'Admin', note }
-        ];
-        return { ...plot, status, history: newHistory };
-      }
-      return plot;
-    }));
+    setPlots((prev) => {
+      const updated = prev.map((plot) => {
+        if (plot.id === plotId) {
+          const newHistory = [
+            ...plot.history,
+            { date: new Date().toISOString().replace('T', ' ').slice(0, 16), from: plot.status, to: status, user: 'Admin', note }
+          ];
+          return { ...plot, status, history: newHistory };
+        }
+        return plot;
+      });
+      return updated;
+    });
     logAction('Updated Plot Status', plotId, `Plot status changed to ${status}`);
   };
 
   const addPlot = (plotData: Partial<PlotAdmin>) => {
     const newPlot: PlotAdmin = {
-      id: `plot-${Date.now()}`,
+      id: `custom-plot-${Date.now()}`,
       number: plotData.number || plots.length + 1,
       projectId: plotData.projectId || 'project-1',
       projectName: plotData.projectName || 'Aanvi Heights',
@@ -236,8 +266,42 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       viewsCount: 1,
       enquiriesCount: 0
     };
-    setPlots((prev) => [newPlot, ...prev]);
+
+    setPlots((prev) => {
+      const updated = [newPlot, ...prev];
+      if (typeof window !== 'undefined') {
+        const customOnly = updated.filter((p) => p.id.startsWith('custom-plot-'));
+        localStorage.setItem('landgrid_custom_plots', JSON.stringify(customOnly));
+      }
+      return updated;
+    });
     logAction('Created Plot Polygon', `P-${newPlot.number}`, `New plot created in ${newPlot.projectName}`);
+  };
+
+  const deletePlot = (plotId: string) => {
+    setPlots((prev) => {
+      const updated = prev.filter((p) => p.id !== plotId);
+      if (typeof window !== 'undefined') {
+        const deletedIds: string[] = JSON.parse(localStorage.getItem('landgrid_deleted_plot_ids') || '[]');
+        if (!deletedIds.includes(plotId)) {
+          localStorage.setItem('landgrid_deleted_plot_ids', JSON.stringify([...deletedIds, plotId]));
+        }
+        const customOnly = updated.filter((p) => p.id.startsWith('custom-plot-'));
+        localStorage.setItem('landgrid_custom_plots', JSON.stringify(customOnly));
+      }
+      return updated;
+    });
+    logAction('Deleted Plot', plotId, 'Plot removed from map and inventory.');
+  };
+
+  const clearAllPlots = () => {
+    setPlots([]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('landgrid_clear_all', 'true');
+      localStorage.removeItem('landgrid_custom_plots');
+      localStorage.removeItem('landgrid_deleted_plot_ids');
+    }
+    logAction('Cleared All Plots', 'All Projects', 'All plot polygons cleared from map editor.');
   };
 
   const updatePlotGeometry = (plotId: string, coords: [number, number][]) => {
@@ -261,7 +325,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       notificationsCount: 5,
       approveDeveloper, rejectDeveloper, suspendDeveloper, addDeveloper,
       approveProject, rejectProject, suspendProject, addProject, toggleFeaturedProject,
-      updatePlotStatus, addPlot, updatePlotGeometry,
+      updatePlotStatus, addPlot, deletePlot, clearAllPlots, updatePlotGeometry,
       updateEnquiryStatus, updateBookingStatus, logAction
     }}>
       {children}

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   Layers3, Search, Filter, Eye, CheckCircle2, AlertTriangle,
-  History, ArrowRight, X, Clock, Edit
+  History, ArrowRight, X, Clock, Edit, Trash2
 } from 'lucide-react';
 import { useAdmin } from '../../../context/AdminContext';
 import { PlotAdmin, PlotAdminStatus } from '../../../lib/adminMockData';
 
 export function AdminPlots() {
-  const { plots, projects, developers, updatePlotStatus } = useAdmin();
+  const { plots, projects, developers, updatePlotStatus, deletePlot } = useAdmin();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [projFilter, setProjFilter] = useState('all');
@@ -145,6 +145,17 @@ export function AdminPlots() {
                     >
                       <Eye size={14} />
                     </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete Plot P-${String(plot.number).padStart(3, '0')}? This will remove it from the map and public marketplace.`)) {
+                          deletePlot(plot.id);
+                        }
+                      }}
+                      className="rounded-lg border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
+                      title="Delete Plot"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -155,7 +166,7 @@ export function AdminPlots() {
 
       {/* PLOT INSPECTION & STATUS HISTORY MODAL */}
       {selectedPlot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 p-4">
           <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl animate-rise">
             <div className="flex items-center justify-between border-b border-slate-200 bg-[#162943] p-5 text-white">
               <div>
@@ -213,7 +224,18 @@ export function AdminPlots() {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete Plot P-${String(selectedPlot.number).padStart(3, '0')}? This will remove it from the map and public marketplace.`)) {
+                      deletePlot(selectedPlot.id);
+                      setSelectedPlot(null);
+                    }
+                  }}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 flex items-center gap-1.5"
+                >
+                  <Trash2 size={14} /> Delete Plot
+                </button>
                 <button
                   onClick={() => setSelectedPlot(null)}
                   className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white hover:bg-slate-800"

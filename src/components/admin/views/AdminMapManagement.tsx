@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer, Polygon, Popup, Tooltip, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, CircleMarker, Popup, Tooltip, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   Map as MapIcon, Edit3, Plus, Trash2, Save, Layers,
@@ -18,7 +18,7 @@ const statusMapColors: Record<PlotAdminStatus, { fill: string; stroke: string }>
 };
 
 export function AdminMapManagement() {
-  const { projects, developers, plots, updatePlotStatus, addPlot } = useAdmin();
+  const { projects, developers, plots, updatePlotStatus, addPlot, deletePlot } = useAdmin();
   const [selectedProjectId, setSelectedProjectId] = useState('project-1');
   const [drawingMode, setDrawingMode] = useState(false);
   const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
@@ -48,6 +48,38 @@ export function AdminMapManagement() {
   const handleFinishPolygon = () => {
     if (drawPoints.length < 3) return;
     setShowPlotModal(true);
+  };
+
+  const handleExportGeoJSON = () => {
+    const geojson = {
+      type: 'FeatureCollection',
+      features: projectPlots.map((plot) => ({
+        type: 'Feature',
+        properties: {
+          id: plot.id,
+          number: plot.number,
+          projectName: plot.projectName,
+          developerName: plot.developerName,
+          status: plot.status,
+          facing: plot.facing,
+          road: plot.road,
+          areaSqFt: plot.areaSqFt,
+          price: plot.price
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [plot.coordinates.map(([lat, lng]) => [lng, lat])]
+        }
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedProject.slug || 'project'}-plots.geojson.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSavePlot = (e: React.FormEvent) => {
@@ -81,6 +113,14 @@ export function AdminMapManagement() {
           <p className="mt-1 text-xs text-slate-500">Draw, edit, and assign GeoJSON plot boundaries directly on OpenStreetMap.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportGeoJSON}
+            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-[#162943] shadow-xs hover:bg-slate-50"
+            title="Download GeoJSON format plot data file"
+          >
+            <Download size={15} className="text-teal-600" /> Export GeoJSON (.json)
+          </button>
           <select
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -145,11 +185,26 @@ export function AdminMapManagement() {
 
       {/* Map Viewport Area */}
       <div className="relative h-[650px] w-full overflow-hidden rounded-2xl border border-slate-300 shadow-xl">
+        {drawingMode && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3 bg-slate-900/90 text-white px-5 py-2.5 rounded-full font-bold text-xs shadow-2xl backdrop-blur-md">
+            <span>Click map to place points ({drawPoints.length} added)</span>
+            {drawPoints.length >= 3 && (
+              <button
+                type="button"
+                onClick={handleFinishPolygon}
+                className="rounded-full bg-teal-500 px-3.5 py-1 text-xs font-bold text-white hover:bg-teal-600 shadow"
+              >
+                Finish & Save Plot ➔
+              </button>
+            )}
+          </div>
+        )}
+
         <MapContainer
           center={[selectedProject.lat, selectedProject.lng]}
           zoom={17}
           scrollWheelZoom
-          className="h-full w-full"
+          className={`h-full w-full ${drawingMode ? 'cursor-crosshair' : ''}`}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -169,39 +224,74 @@ export function AdminMapManagement() {
                   fillColor: colors.fill,
                   fillOpacity: 0.65,
                   color: colors.stroke,
-                  weight: 2
+                  weight: 2,
+                  interactive: !drawingMode
                 }}
               >
-                <Tooltip permanent direction="center" className="bg-white/90 text-[10px] font-bold">
-                  P-{String(plot.number).padStart(3, '0')}
-                </Tooltip>
-                <Popup>
-                  <div className="p-1 space-y-2 text-xs">
-                    <p className="font-bold text-[#162943]">Plot P-{String(plot.number).padStart(3, '0')}</p>
-                    <p className="text-[11px] text-slate-500">{plot.areaSqFt} sq ft · {plot.facing} facing</p>
-                    <p className="font-mono font-bold text-teal-600">₹{(plot.price / 100000).toFixed(1)}L</p>
-                    <div className="flex gap-1 pt-1">
-                      <button
-                        onClick={() => updatePlotStatus(plot.id, 'Available')}
-                        className="px-2 py-1 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded"
-                      >
-                        Set Avail
-                      </button>
-                      <button
-                        onClick={() => updatePlotStatus(plot.id, 'Sold')}
-                        className="px-2 py-1 text-[9px] font-bold bg-rose-100 text-rose-800 rounded"
-                      >
-                        Set Sold
-                      </button>
+                {!drawingMode && (
+                  <Tooltip permanent direction="center" className="bg-white/90 text-[10px] font-bold">
+                    P-{String(plot.number).padStart(3, '0')}
+                  </Tooltip>
+                )}
+                {!drawingMode && (
+                  <Popup>
+                    <div className="p-1 space-y-2 text-xs">
+                      <p className="font-bold text-[#162943]">Plot P-{String(plot.number).padStart(3, '0')}</p>
+                      <p className="text-[11px] text-slate-500">{plot.areaSqFt} sq ft · {plot.facing} facing</p>
+                      <p className="font-mono font-bold text-teal-600">₹{(plot.price / 100000).toFixed(1)}L</p>
+                      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-slate-100 mt-1.5">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => updatePlotStatus(plot.id, 'Available')}
+                            className="px-2 py-1 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200"
+                          >
+                            Set Avail
+                          </button>
+                          <button
+                            onClick={() => updatePlotStatus(plot.id, 'Sold')}
+                            className="px-2 py-1 text-[9px] font-bold bg-rose-100 text-rose-800 rounded hover:bg-rose-200"
+                          >
+                            Set Sold
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Delete Plot P-${String(plot.number).padStart(3, '0')}? This will remove it from the map and public marketplace.`)) {
+                              deletePlot(plot.id);
+                            }
+                          }}
+                          className="px-2 py-1 text-[9px] font-bold bg-rose-50 text-rose-600 rounded border border-rose-200 hover:bg-rose-100 flex items-center gap-1"
+                          title="Delete plot from map & marketplace"
+                        >
+                          <Trash2 size={11} /> Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </Popup>
+                  </Popup>
+                )}
               </Polygon>
             );
           })}
 
-          {/* Render Polygon currently being drawn */}
-          {drawPoints.length > 0 && (
+          {/* Render point markers while drawing */}
+          {drawingMode && drawPoints.map((pt, idx) => (
+            <CircleMarker
+              key={idx}
+              center={pt}
+              radius={5}
+              pathOptions={{ fillColor: '#f59e0b', color: '#ffffff', weight: 2, fillOpacity: 1 }}
+            />
+          ))}
+
+          {/* Render Polyline or Polygon currently being drawn */}
+          {drawingMode && drawPoints.length > 1 && drawPoints.length < 3 && (
+            <Polyline
+              positions={drawPoints}
+              pathOptions={{ color: '#f59e0b', weight: 3, dashArray: '6, 6' }}
+            />
+          )}
+
+          {drawingMode && drawPoints.length >= 3 && (
             <Polygon
               positions={drawPoints}
               pathOptions={{ fillColor: '#f59e0b', fillOpacity: 0.7, color: '#b45309', weight: 3, dashArray: '6, 6' }}
@@ -212,7 +302,7 @@ export function AdminMapManagement() {
 
       {/* CREATE PLOT FROM POLYGON MODAL */}
       {showPlotModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/75 p-4 backdrop-blur-xs">
           <form onSubmit={handleSavePlot} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
             <h3 className="font-serif text-lg font-bold text-[#162943]">Save Drawn Plot Polygon</h3>
             <div className="grid grid-cols-2 gap-2">
