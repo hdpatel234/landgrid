@@ -398,50 +398,154 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
         </div>
 
           <aside className="hidden overflow-hidden border-l border-slate-200 bg-white lg:flex lg:flex-col">
-            <div className="border-b border-slate-100 p-5">
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-[10px] uppercase tracking-[.15em] text-slate-400">Available now</p>
-                <span className="rounded-full bg-teal-50 px-2 py-1 font-mono text-[10px] font-bold text-[#0c665c]">{available} plots</span>
-              </div>
-              <p className="mt-3 text-[13px] leading-5 text-slate-500">Select a plot on the plan to inspect dimensions, price and booking status.</p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              {filtered.length ? filtered.slice(0, 20).map((plot) => {
-                const isSelected = selected?.id === plot.id;
-                return (
+            {selected ? (
+              <div className="flex h-full flex-col justify-between p-6">
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="flex items-center gap-1.5 text-xs font-bold text-[#159b8b] hover:text-[#0d8175]"
+                    >
+                      ← Back to all plots
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      aria-label="Close details"
+                      className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="flex items-center justify-between">
+                      <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#159b8b]">Plot detail · {project.name}</p>
+                      <StatusBadge status={selected.status} />
+                    </div>
+                    <h3 className="mt-2 font-serif text-4xl font-bold tracking-[-.04em] text-[#162943]">
+                      P-{String(selected.number).padStart(3, '0')}
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">{selected.sector}</p>
+                    <div className="mt-4 rounded-xl bg-slate-50 p-4 border border-slate-100">
+                      <p className="font-mono text-[9px] uppercase tracking-[.14em] text-slate-400">Total Price</p>
+                      <p className="mt-1 font-mono text-2xl font-extrabold text-[#162943]">
+                        {formatPrice(selected.price)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
+                    <Detail label="Area" value={`${selected.area.toLocaleString()} sq ft`} />
+                    <Detail label="Facing" value={selected.facing} />
+                    <Detail label="Road width" value={selected.road} />
+                    <Detail label="Plot type" value={selected.type} />
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-2 border-t border-slate-100 pt-4">
                   <button
-                    key={plot.id}
                     type="button"
-                    onClick={() => onSelect(plot)}
-                    data-testid={`card-map-plot-${plot.number}`}
-                    className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left transition ${isSelected ? 'bg-teal-50/90 ring-2 ring-inset ring-[#159b8b]' : 'hover:bg-slate-50'}`}
+                    onClick={() => onEnquire(selected)}
+                    data-testid="button-sidebar-enquire-plot"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold text-[#162943] transition hover:bg-slate-50"
                   >
-                    <span>
-                      <span className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] font-bold text-[#162943]">P-{String(plot.number).padStart(3, '0')}</span>
-                        {plot.type !== 'Standard' && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">{plot.type}</span>}
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-500">{plot.area.toLocaleString()} sq ft · {plot.facing}</span>
-                      <span className="text-[10px] text-teal-600">{plot.sector}</span>
-                    </span>
-                    <span className="text-right">
-                      <span className="block font-mono text-[11px] font-bold text-[#162943]">{formatCompactPrice(plot.price)}</span>
-                      <StatusBadge status={plot.status} />
-                    </span>
+                    <MessageSquare size={15} /> Enquire Plot
                   </button>
-                );
-              }) : <EmptyState onClear={() => { setQuery(''); setStatus('all'); setType('all'); setPhase('all'); }} />}
-            </div>
+                  <button
+                    type="button"
+                    disabled={selected.status !== 'Available'}
+                    onClick={() => onBook(selected)}
+                    data-testid="button-sidebar-book-plot"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#159b8b] px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0d8175] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Start booking <ArrowRight size={15} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="border-b border-slate-100 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono text-[10px] uppercase tracking-[.15em] text-slate-400">Available now</p>
+                    <span className="rounded-full bg-teal-50 px-2 py-1 font-mono text-[10px] font-bold text-[#0c665c]">{available} plots</span>
+                  </div>
+                  <p className="mt-3 text-[13px] leading-5 text-slate-500">Select a plot on the plan to inspect dimensions, price and booking status.</p>
+                </div>
+                <div className="min-h-0 flex-1 overflow-auto">
+                  {filtered.length ? filtered.slice(0, 20).map((plot) => {
+                    const isSelected = selected?.id === plot.id;
+                    return (
+                      <button
+                        key={plot.id}
+                        type="button"
+                        onClick={() => onSelect(plot)}
+                        data-testid={`card-map-plot-${plot.number}`}
+                        className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left transition ${isSelected ? 'bg-teal-50/90 ring-2 ring-inset ring-[#159b8b]' : 'hover:bg-slate-50'}`}
+                      >
+                        <span>
+                          <span className="flex items-center gap-2">
+                            <span className="font-mono text-[11px] font-bold text-[#162943]">P-{String(plot.number).padStart(3, '0')}</span>
+                            {plot.type !== 'Standard' && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">{plot.type}</span>}
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">{plot.area.toLocaleString()} sq ft · {plot.facing}</span>
+                          <span className="text-[10px] text-teal-600">{plot.sector}</span>
+                        </span>
+                        <span className="text-right">
+                          <span className="block font-mono text-[11px] font-bold text-[#162943]">{formatCompactPrice(plot.price)}</span>
+                          <StatusBadge status={plot.status} />
+                        </span>
+                      </button>
+                    );
+                  }) : <EmptyState onClear={() => { setQuery(''); setStatus('all'); setType('all'); setPhase('all'); }} />}
+                </div>
+              </>
+            )}
           </aside>
         </div>
 
-      {selected && <PlotSheet plot={selected} project={project} onClose={onClose} onBook={onBook} onEnquire={onEnquire} />}
+      {selected && (
+        <div className="lg:hidden">
+          <PlotSheet plot={selected} project={project} onClose={onClose} onBook={onBook} onEnquire={onEnquire} />
+        </div>
+      )}
     </div>
   );
 }
 
 function PlotSheet({ plot, project, onClose, onBook, onEnquire }: { plot: Plot; project: Project; onClose: () => void; onBook: (plot: Plot) => void; onEnquire: (plot: Plot) => void }) {
-  return <div className="fixed inset-x-0 bottom-0 z-[1100] mx-auto max-w-[560px] rounded-t-3xl border border-slate-200 bg-white p-5 shadow-[0_-18px_50px_rgba(22,41,67,.2)] md:absolute md:bottom-6 md:left-6 md:right-auto md:inset-x-auto md:w-[360px] md:rounded-2xl md:p-6"><div className="flex items-start justify-between"><div><p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#159b8b]">Plot detail · {project.name}</p><h3 className="mt-1 font-serif text-3xl font-semibold tracking-[-.05em] text-[#162943]">P-{String(plot.number).padStart(3, '0')}</h3></div><button type="button" onClick={onClose} aria-label="Close plot details" data-testid="button-close-plot-sheet" className="rounded-full p-2 text-slate-400 hover:bg-slate-100"><X size={17} /></button></div><div className="mt-4 flex items-center justify-between"><StatusBadge status={plot.status} /><span className="font-mono text-sm font-bold text-[#162943]">{formatPrice(plot.price)}</span></div><div className="mt-5 grid grid-cols-2 gap-2 text-xs"><Detail label="Area" value={`${plot.area.toLocaleString()} sq ft`} /><Detail label="Facing" value={plot.facing} /><Detail label="Road width" value={plot.road} /><Detail label="Plot type" value={plot.type} /></div><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => onEnquire(plot)} data-testid="button-enquire-plot" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-[#162943] hover:bg-slate-50"><MessageSquare size={14} /> Enquire</button><button type="button" disabled={plot.status !== 'Available'} onClick={() => onBook(plot)} data-testid="button-book-plot" className="flex items-center justify-center gap-2 rounded-xl bg-[#159b8b] px-3 py-3 text-xs font-bold text-white hover:bg-[#0d8175] disabled:cursor-not-allowed disabled:opacity-40">Start booking <ArrowRight size={14} /></button></div></div>;
+  return (
+    <div className="fixed inset-x-4 bottom-4 z-[1100] mx-auto max-w-[460px] rounded-2xl border border-slate-200 bg-white/98 p-5 shadow-[0_20px_50px_rgba(22,41,67,.25)] backdrop-blur-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#159b8b]">Plot detail · {project.name}</p>
+          <h3 className="mt-1 font-serif text-3xl font-semibold tracking-[-.05em] text-[#162943]">P-{String(plot.number).padStart(3, '0')}</h3>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close plot details" data-testid="button-close-plot-sheet" className="rounded-full p-2 text-slate-400 hover:bg-slate-100">
+          <X size={17} />
+        </button>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <StatusBadge status={plot.status} />
+        <span className="font-mono text-base font-bold text-[#162943]">{formatPrice(plot.price)}</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <Detail label="Area" value={`${plot.area.toLocaleString()} sq ft`} />
+        <Detail label="Facing" value={plot.facing} />
+        <Detail label="Road width" value={plot.road} />
+        <Detail label="Plot type" value={plot.type} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => onEnquire(plot)} data-testid="button-enquire-plot" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-[#162943] hover:bg-slate-50">
+          <MessageSquare size={14} /> Enquire
+        </button>
+        <button type="button" disabled={plot.status !== 'Available'} onClick={() => onBook(plot)} data-testid="button-book-plot" className="flex items-center justify-center gap-2 rounded-xl bg-[#159b8b] px-3 py-2.5 text-xs font-bold text-white hover:bg-[#0d8175] disabled:cursor-not-allowed disabled:opacity-40">
+          Start booking <ArrowRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
 }
 function Detail({ label, value }: { label: string; value: string }) { return <div className="rounded-xl bg-slate-50 p-3"><p className="font-mono text-[9px] uppercase tracking-[.12em] text-slate-400">{label}</p><p className="mt-1 text-xs font-semibold text-[#162943]">{value}</p></div>; }
 function EmptyState({ onClear }: { onClear: () => void }) { return <div className="p-8 text-center"><div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Search size={16} /></div><p className="mt-3 text-sm font-bold text-[#162943]">No plots match those filters</p><button type="button" onClick={onClear} data-testid="button-empty-reset" className="mt-3 text-xs font-bold text-[#159b8b]">Clear filters</button></div>; }
