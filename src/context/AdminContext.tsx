@@ -32,6 +32,7 @@ interface AdminContextType {
   addPlot: (plot: Partial<PlotAdmin>) => void;
   deletePlot: (plotId: string) => void;
   clearAllPlots: () => void;
+  importPlotsBatch: (plotsList: Partial<PlotAdmin>[]) => void;
   updatePlotGeometry: (plotId: string, coords: [number, number][]) => void;
 
   // Enquiry & Booking Actions
@@ -304,6 +305,44 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     logAction('Cleared All Plots', 'All Projects', 'All plot polygons cleared from map editor.');
   };
 
+  const importPlotsBatch = (plotsList: Partial<PlotAdmin>[]) => {
+    const created: PlotAdmin[] = plotsList.map((plotData, idx) => {
+      const area = plotData.areaSqFt || 1650;
+      return {
+        id: `custom-plot-${Date.now()}-${idx + 1}`,
+        number: plotData.number || idx + 1,
+        projectId: plotData.projectId || 'project-1',
+        projectName: plotData.projectName || 'Aanvi Heights',
+        developerId: plotData.developerId || 'dev-1',
+        developerName: plotData.developerName || 'Sreeni Groups',
+        sector: plotData.sector || 'Masterplan Layout',
+        status: plotData.status || 'Available',
+        facing: plotData.facing || 'East',
+        road: plotData.road || "9.00M Wide Internal Road",
+        areaSqFt: area,
+        areaSqYd: Math.round(area / 9),
+        price: plotData.price || area * 3200,
+        type: plotData.type || (idx % 5 === 0 ? 'Corner' : idx % 7 === 0 ? 'Premium' : 'Standard'),
+        coordinates: plotData.coordinates || [[17.2475, 78.4490], [17.2478, 78.4490], [17.2478, 78.4494], [17.2475, 78.4494]],
+        history: [{ date: new Date().toISOString().slice(0, 10), from: 'Draft', to: 'Available', user: 'Admin AI Importer', note: 'Extracted from Layout Plan Blueprint' }],
+        viewsCount: 5,
+        enquiriesCount: 0
+      };
+    });
+
+    setPlots((prev) => {
+      const updated = [...created, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('landgrid_clear_all');
+        const customOnly = updated.filter((p) => p.id.startsWith('custom-plot-'));
+        localStorage.setItem('landgrid_custom_plots', JSON.stringify(customOnly));
+      }
+      return updated;
+    });
+
+    logAction('Extracted Layout Plan', `${created.length} Plots`, `Auto-generated ${created.length} plots from Layout Blueprint Image.`);
+  };
+
   const updatePlotGeometry = (plotId: string, coords: [number, number][]) => {
     setPlots((prev) => prev.map((p) => p.id === plotId ? { ...p, coordinates: coords } : p));
     logAction('Updated Plot GeoJSON', plotId, 'Polygon coordinates adjusted on map editor.');
@@ -325,7 +364,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       notificationsCount: 5,
       approveDeveloper, rejectDeveloper, suspendDeveloper, addDeveloper,
       approveProject, rejectProject, suspendProject, addProject, toggleFeaturedProject,
-      updatePlotStatus, addPlot, deletePlot, clearAllPlots, updatePlotGeometry,
+      updatePlotStatus, addPlot, deletePlot, clearAllPlots, importPlotsBatch, updatePlotGeometry,
       updateEnquiryStatus, updateBookingStatus, logAction
     }}>
       {children}

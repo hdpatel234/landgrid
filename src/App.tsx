@@ -1,6 +1,6 @@
 import React, { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { GeoJSON, MapContainer, TileLayer, Tooltip, Polyline, useMap } from 'react-leaflet';
+import { GeoJSON, MapContainer, TileLayer, Tooltip, Polyline, Popup, useMap } from 'react-leaflet';
 import type { LatLngExpression, LeafletMouseEvent } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Link, Route, Switch, useLocation, useParams } from 'wouter';
@@ -327,6 +327,8 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
               {filtered.map((plot) => {
                 const meta = statusMeta[plot.status];
                 const active = selected?.id === plot.id;
+                const centerLat = plot.coordinates.reduce((sum, c) => sum + c[0], 0) / plot.coordinates.length;
+                const centerLng = plot.coordinates.reduce((sum, c) => sum + c[1], 0) / plot.coordinates.length;
                 const geoJson = {
                   type: 'Feature' as const,
                   properties: { plotNumber: plot.number },
@@ -349,6 +351,23 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
                         <div className="mt-1 text-[11px] font-normal">{plot.area.toLocaleString()} sq ft · {formatCompactPrice(plot.price)}</div>
                       </div>
                     </Tooltip>
+                    {active && (
+                      <Popup position={[centerLat, centerLng]}>
+                        <div className="p-1 space-y-1.5 text-xs min-w-[180px]">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 font-bold">
+                            <span className="font-mono text-sm text-[#162943]">P-{String(plot.number).padStart(3, '0')}</span>
+                            <StatusBadge status={plot.status} />
+                          </div>
+                          <p className="text-xs font-bold text-[#162943]">{plot.area.toLocaleString()} sq ft ({Math.round(plot.area / 9)} sq yd)</p>
+                          <p className="text-[11px] text-slate-500">{plot.facing} Facing · {plot.road}</p>
+                          <p className="text-[10px] text-teal-600 font-semibold">{plot.sector}</p>
+                          <div className="pt-1.5 flex items-center justify-between border-t border-slate-100 mt-1 font-mono font-extrabold text-[#162943]">
+                            <span>{formatPrice(plot.price)}</span>
+                            <span className="text-[10px] font-sans font-bold text-[#159b8b]">Active Plot ✓</span>
+                          </div>
+                        </div>
+                      </Popup>
+                    )}
                   </GeoJSON>
                 );
               })}
