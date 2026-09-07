@@ -18,7 +18,7 @@ const statusMapColors: Record<PlotAdminStatus, { fill: string; stroke: string }>
 };
 
 export function AdminMapManagement() {
-  const { projects, developers, plots, updatePlotStatus, addPlot, deletePlot } = useAdmin();
+  const { projects, developers, plots, updatePlotStatus, addPlot, deletePlot, clearAllPlots } = useAdmin();
   const [selectedProjectId, setSelectedProjectId] = useState('project-1');
   const [drawingMode, setDrawingMode] = useState(false);
   const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
@@ -113,6 +113,19 @@ export function AdminMapManagement() {
           <p className="mt-1 text-xs text-slate-500">Draw, edit, and assign GeoJSON plot boundaries directly on OpenStreetMap.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Are you sure you want to remove ALL plots from the map? This will clear all plots from both the Map Editor and Buyer Marketplace.')) {
+                clearAllPlots();
+              }
+            }}
+            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 shadow-xs hover:bg-rose-100"
+            title="Clear all plots from map & inventory"
+          >
+            <Trash2 size={15} /> Clear All Plots
+          </button>
+
           <button
             type="button"
             onClick={handleExportGeoJSON}

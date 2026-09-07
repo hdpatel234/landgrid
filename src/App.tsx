@@ -172,6 +172,34 @@ function generatePlots(): Plot[] {
 }
 
 function getAllPlots(): Plot[] {
+  if (typeof window !== 'undefined' && localStorage.getItem('landgrid_clear_all') === 'true') {
+    const saved = localStorage.getItem('landgrid_custom_plots');
+    if (saved) {
+      try {
+        const customAdminPlots = JSON.parse(saved);
+        return customAdminPlots.map((p: any) => ({
+          id: p.id,
+          number: p.number,
+          sector: p.sector || 'Phase 1 - North Greens',
+          status: p.status || 'Available',
+          facing: p.facing || 'East',
+          road: p.road || "33' Road",
+          area: p.areaSqFt || 1650,
+          price: p.price || 5200000,
+          type: p.type || 'Standard',
+          coordinates: p.coordinates,
+          x3d: 0,
+          z3d: 0,
+          w3d: 20,
+          d3d: 20
+        }));
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
   const generated = generatePlots();
   let result = generated;
   if (typeof window !== 'undefined') {
