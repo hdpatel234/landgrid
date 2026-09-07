@@ -1,4 +1,4 @@
-import React, { Fragment, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import React, { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GeoJSON, MapContainer, TileLayer, Tooltip, Polyline, useMap } from 'react-leaflet';
 import type { LatLngExpression, LeafletMouseEvent } from 'leaflet';
@@ -245,6 +245,20 @@ function MapControls({ expanded, onToggleExpanded, mapCenter }: { expanded: bool
   return <div className="absolute right-4 top-4 z-[500] flex flex-col gap-2"><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={() => map.zoomIn()} aria-label="Zoom in" data-testid="button-map-zoom-in" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Plus size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.zoomOut()} aria-label="Zoom out" data-testid="button-map-zoom-out" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Minus size={16} /></button></div><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={locate} aria-label="Locate me" data-testid="button-map-locate" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><LocateFixed size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.setView(mapCenter, 17)} aria-label="Reset map" data-testid="button-map-reset" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><RotateCcw size={15} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={onToggleExpanded} aria-label="Toggle fullscreen map" data-testid="button-map-fullscreen" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100">{expanded ? <Minimize2 size={15} /> : <Eye size={15} />}</button></div></div>;
 }
 
+function PlotFlyTo({ selected }: { selected: Plot | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (selected && selected.coordinates && selected.coordinates.length > 0) {
+      const lats = selected.coordinates.map((c) => c[0]);
+      const lngs = selected.coordinates.map((c) => c[1]);
+      const centerLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const centerLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+      map.flyTo([centerLat, centerLng], 19, { animate: true, duration: 1.2 });
+    }
+  }, [selected, map]);
+  return null;
+}
+
 function StatusBadge({ status }: { status: PlotStatus }) {
   const meta = statusMeta[status];
   return <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em]" style={{ backgroundColor: `${meta.fill}40`, color: meta.ink }}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: meta.stroke }} />{meta.label}</span>;
@@ -273,8 +287,8 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
     <div className={`mx-auto max-w-[1400px] px-5 pb-20 sm:px-8 ${expanded ? 'fixed inset-0 z-[900] max-w-none bg-[#f3f6f8] pt-4' : ''}`}>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[#159b8b]">Interactive inventory · {project.name}</p>
-          <h2 className="mt-1 font-serif text-3xl font-semibold tracking-[-.05em] text-[#162943]">Choose your ground</h2>
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-[#159b8b]">Interactive masterplan</p>
+          <h2 className="mt-1 font-serif text-3xl font-semibold tracking-[-.05em] text-[#162943]">Explore plot availability</h2>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-500">
           <span className="font-mono font-bold text-[#162943]" data-testid="text-results-count">{filtered.length}</span> of {allPlots.length} plots shown
@@ -299,14 +313,16 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
         </div>
       </div>
 
-      {viewMode === '3d' ? (
-        <Map3DView project={project} plots={filtered} selectedPlot={selected} onSelectPlot={onSelect} onView2D={() => setViewMode('2d')} />
-      ) : (
-        <div className={`grid overflow-hidden rounded-[22px] border border-slate-200 bg-[#dce7e7] shadow-[0_24px_60px_rgba(22,41,67,.13)] lg:grid-cols-[minmax(0,1fr)_320px] ${expanded ? 'h-[calc(100dvh-32px)]' : ''}`}>
-          <div className={`map-shell relative min-h-[580px] ${expanded ? 'min-h-0' : 'h-[min(72vh,740px)]'}`}>
+      <div className={`grid overflow-hidden rounded-[22px] border border-slate-200 bg-[#dce7e7] shadow-[0_24px_60px_rgba(22,41,67,.13)] lg:grid-cols-[minmax(0,1fr)_320px] ${expanded ? 'h-[calc(100dvh-32px)]' : ''}`}>
+        <div className={`map-shell relative min-h-[580px] ${expanded ? 'min-h-0' : 'h-[min(72vh,740px)]'}`} style={{ perspective: '1200px', overflow: 'hidden' }}>
+          <div
+            className="h-full w-full transition-transform duration-500 ease-out"
+            style={viewMode === '3d' ? { transform: 'rotateX(52deg) rotateZ(-10deg) scale(1.15)', transformStyle: 'preserve-3d' } : { transform: 'none' }}
+          >
             <MapContainer center={center} zoom={17} scrollWheelZoom className="h-full min-h-[580px] w-full">
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className={satellite ? 'satellite-mock' : ''} />
               <MapControls expanded={expanded} onToggleExpanded={() => setExpanded(!expanded)} mapCenter={center} />
+              <PlotFlyTo selected={selected} />
               
               {filtered.map((plot) => {
                 const meta = statusMeta[plot.status];
@@ -337,40 +353,49 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
                 );
               })}
             </MapContainer>
+          </div>
 
-            {/* Status Legend */}
-            <div className="pointer-events-none absolute bottom-4 left-4 z-[500] flex flex-wrap gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-2 shadow-lg backdrop-blur-sm">
-              {statusOptions.map((item) => (
-                <span key={item} className="flex items-center gap-1.5 px-1.5 text-[10px] font-semibold text-slate-600">
-                  <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: statusMeta[item].fill, border: `1px solid ${statusMeta[item].stroke}` }} />
-                  {statusMeta[item].label}
-                </span>
-              ))}
+          {/* Status Legend */}
+          <div className="pointer-events-none absolute bottom-4 left-4 z-[500] flex flex-wrap gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-2 shadow-lg backdrop-blur-sm">
+            {statusOptions.map((item) => (
+              <span key={item} className="flex items-center gap-1.5 px-1.5 text-[10px] font-semibold text-slate-600">
+                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: statusMeta[item].fill, border: `1px solid ${statusMeta[item].stroke}` }} />
+                {statusMeta[item].label}
+              </span>
+            ))}
+          </div>
+
+          {/* 3D Mode Active Status Badge */}
+          {viewMode === '3d' && (
+            <div className="absolute top-4 left-4 z-[600] flex items-center gap-2 rounded-full border border-teal-500/40 bg-[#162943]/90 px-3 py-1.5 font-mono text-[11px] font-bold text-teal-300 shadow-xl backdrop-blur-md">
+              <span className="h-2 w-2 animate-ping rounded-full bg-teal-400" />
+              3D PERSPECTIVE MODE ACTIVE
             </div>
+          )}
 
-            {/* 2D / 3D Mode Toggle Switcher Pill */}
-            <div className="absolute bottom-4 right-4 z-[600] flex items-center rounded-full border border-slate-300 bg-slate-900/90 p-1 shadow-xl backdrop-blur-md">
-              <button
-                type="button"
-                onClick={() => setViewMode('2d')}
-                className={`rounded-full px-4 py-1.5 font-mono text-xs font-bold transition ${(viewMode as string) === '2d' ? 'bg-teal-500 text-white shadow' : 'text-slate-300 hover:text-white'}`}
-              >
-                2D
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('3d')}
-                className={`rounded-full px-4 py-1.5 font-mono text-xs font-bold transition ${(viewMode as string) === '3d' ? 'bg-teal-500 text-white shadow' : 'text-slate-300 hover:text-white'}`}
-              >
-                3D
-              </button>
-            </div>
-
-            {/* Aerial Tint Toggle */}
-            <button type="button" onClick={() => setSatellite(!satellite)} data-testid="button-map-layer-toggle" className="absolute bottom-4 right-32 z-[500] flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[10px] font-bold text-[#162943] shadow-lg hover:bg-slate-50">
-              <Layers3 size={13} /> {satellite ? 'Map view' : 'Aerial tint'}
+          {/* 2D / 3D Mode Toggle Switcher Pill */}
+          <div className="absolute bottom-4 right-4 z-[600] flex items-center rounded-full border border-slate-300 bg-slate-900/90 p-1 shadow-xl backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => setViewMode('2d')}
+              className={`rounded-full px-4 py-1.5 font-mono text-xs font-bold transition ${viewMode === '2d' ? 'bg-teal-500 text-white shadow' : 'text-slate-300 hover:text-white'}`}
+            >
+              2D
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('3d')}
+              className={`rounded-full px-4 py-1.5 font-mono text-xs font-bold transition ${viewMode === '3d' ? 'bg-teal-500 text-white shadow' : 'text-slate-300 hover:text-white'}`}
+            >
+              3D
             </button>
           </div>
+
+          {/* Aerial Tint Toggle */}
+          <button type="button" onClick={() => setSatellite(!satellite)} data-testid="button-map-layer-toggle" className="absolute bottom-4 right-32 z-[500] flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[10px] font-bold text-[#162943] shadow-lg hover:bg-slate-50">
+            <Layers3 size={13} /> {satellite ? 'Map view' : 'Aerial tint'}
+          </button>
+        </div>
 
           <aside className="hidden overflow-hidden border-l border-slate-200 bg-white lg:flex lg:flex-col">
             <div className="border-b border-slate-100 p-5">
@@ -381,26 +406,34 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
               <p className="mt-3 text-[13px] leading-5 text-slate-500">Select a plot on the plan to inspect dimensions, price and booking status.</p>
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
-              {filtered.length ? filtered.slice(0, 20).map((plot) => (
-                <button key={plot.id} type="button" onClick={() => onSelect(plot)} data-testid={`card-map-plot-${plot.number}`} className="flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50">
-                  <span>
-                    <span className="flex items-center gap-2">
-                      <span className="font-mono text-[11px] font-bold text-[#162943]">P-{String(plot.number).padStart(3, '0')}</span>
-                      {plot.type !== 'Standard' && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">{plot.type}</span>}
+              {filtered.length ? filtered.slice(0, 20).map((plot) => {
+                const isSelected = selected?.id === plot.id;
+                return (
+                  <button
+                    key={plot.id}
+                    type="button"
+                    onClick={() => onSelect(plot)}
+                    data-testid={`card-map-plot-${plot.number}`}
+                    className={`flex w-full items-center justify-between border-b border-slate-100 px-4 py-3 text-left transition ${isSelected ? 'bg-teal-50/90 ring-2 ring-inset ring-[#159b8b]' : 'hover:bg-slate-50'}`}
+                  >
+                    <span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] font-bold text-[#162943]">P-{String(plot.number).padStart(3, '0')}</span>
+                        {plot.type !== 'Standard' && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800">{plot.type}</span>}
+                      </span>
+                      <span className="mt-1 block text-xs text-slate-500">{plot.area.toLocaleString()} sq ft · {plot.facing}</span>
+                      <span className="text-[10px] text-teal-600">{plot.sector}</span>
                     </span>
-                    <span className="mt-1 block text-xs text-slate-500">{plot.area.toLocaleString()} sq ft · {plot.facing}</span>
-                    <span className="text-[10px] text-teal-600">{plot.sector}</span>
-                  </span>
-                  <span className="text-right">
-                    <span className="block font-mono text-[11px] font-bold text-[#162943]">{formatCompactPrice(plot.price)}</span>
-                    <StatusBadge status={plot.status} />
-                  </span>
-                </button>
-              )) : <EmptyState onClear={() => { setQuery(''); setStatus('all'); setType('all'); setPhase('all'); }} />}
+                    <span className="text-right">
+                      <span className="block font-mono text-[11px] font-bold text-[#162943]">{formatCompactPrice(plot.price)}</span>
+                      <StatusBadge status={plot.status} />
+                    </span>
+                  </button>
+                );
+              }) : <EmptyState onClear={() => { setQuery(''); setStatus('all'); setType('all'); setPhase('all'); }} />}
             </div>
           </aside>
         </div>
-      )}
 
       {selected && <PlotSheet plot={selected} project={project} onClose={onClose} onBook={onBook} onEnquire={onEnquire} />}
     </div>
