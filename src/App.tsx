@@ -67,59 +67,87 @@ const priceLabels: Record<string, string> = Object.fromEntries(projectSeeds.map(
 projects.forEach((project) => { project.priceFrom = Number(priceLabels[project.name].replace(/[₹,]/g, '').replace('Cr', '0000000').replace('L', '00000')) || 0; });
 
 const sectors = [
-  { name: 'Phase 1 - North Greens', latOff: 0.0028, lngOff: -0.0024, x3d: -160, z3d: -130 },
-  { name: 'Phase 2 - West Garden', latOff: 0.0012, lngOff: -0.0036, x3d: -170, z3d: -30 },
-  { name: 'Phase 3 - East Avenue', latOff: 0.0026, lngOff: 0.0018, x3d: 50, z3d: -120 },
-  { name: 'Phase 4 - Central Court', latOff: 0.0008, lngOff: 0.0002, x3d: -30, z3d: 30 },
-  { name: 'Phase 5 - South Reserve', latOff: -0.0012, lngOff: -0.0022, x3d: -140, z3d: 60 },
-  { name: 'Phase 6 - Executive Crest', latOff: -0.0010, lngOff: 0.0020, x3d: 40, z3d: 60 },
+  { name: 'Phase 1 - North Greens', latOff: 0, lngOff: 0, x3d: -160, z3d: -130 },
+  { name: 'Phase 2 - West Garden', latOff: 0, lngOff: 0, x3d: -170, z3d: -30 },
+  { name: 'Phase 3 - East Avenue', latOff: 0, lngOff: 0, x3d: 50, z3d: -120 },
+  { name: 'Phase 4 - Central Court', latOff: 0, lngOff: 0, x3d: -30, z3d: 30 },
+  { name: 'Phase 5 - South Reserve', latOff: 0, lngOff: 0, x3d: -140, z3d: 60 },
+  { name: 'Phase 6 - Executive Crest', latOff: 0, lngOff: 0, x3d: 40, z3d: 60 },
 ];
 
 function generatePlots(): Plot[] {
-  const plotConfigs: Array<{
-    number: number;
-    sector: string;
-    status: PlotStatus;
-    facing: string;
-    road: string;
-    area: number;
-    price: number;
-    type: PlotType;
-    latOff: number;
-    lngOff: number;
-    x3d: number;
-    z3d: number;
-  }> = [
-    { number: 1, sector: 'Phase 1 - North Greens', status: 'Available', facing: 'East', road: "33' Road", area: 1650, price: 5560000, type: 'Premium', latOff: 0.002, lngOff: -0.001, x3d: -120, z3d: -80 },
-    { number: 2, sector: 'Phase 1 - North Greens', status: 'On Hold', facing: 'North', road: "33' Road", area: 1500, price: 5060000, type: 'Corner', latOff: 0.002, lngOff: 0.0005, x3d: -30, z3d: -80 },
-    { number: 3, sector: 'Phase 2 - West Garden', status: 'Available', facing: 'West', road: "40' Road", area: 1800, price: 6070000, type: 'Standard', latOff: 0.0005, lngOff: -0.0015, x3d: -120, z3d: 0 },
-    { number: 4, sector: 'Phase 2 - West Garden', status: 'Registration Completed', facing: 'South', road: "40' Road", area: 2100, price: 7080000, type: 'Standard', latOff: 0.0005, lngOff: 0.001, x3d: 60, z3d: 0 },
-    { number: 5, sector: 'Phase 3 - East Avenue', status: 'Sold', facing: 'East', road: "Proposed 150' Main Road", area: 2400, price: 8970000, type: 'Premium', latOff: -0.001, lngOff: 0.000, x3d: -30, z3d: 80 },
+  const plots: Plot[] = [];
+  const baseLat = 17.2470;
+  const baseLng = 78.4485;
+  const plotWidth = 0.00048;  // ~50m width
+  const plotHeight = 0.00035; // ~38m height
+  const gapLat = 0.00012;     // internal road gap between rows
+  const gapLng = 0.00008;
+
+  const statuses: PlotStatus[] = ['Available', 'On Hold', 'Registration Completed', 'Sold'];
+  const facings = ['North', 'South', 'East', 'West'];
+  const roads = ["30' Road", "33' Road", "40' Road", "Proposed 100' Wide Road"];
+  const plotTypes: PlotType[] = ['Standard', 'Corner', 'Premium'];
+
+  let plotNum = 1;
+
+  // Create 6 sectors arranged in a 2x3 block grid (side-by-side plots like reference screenshot)
+  const sectorLayouts = [
+    { name: 'Phase 1 - North Greens', rowStart: 0, colStart: 0, rows: 4, cols: 5 },
+    { name: 'Phase 2 - West Garden', rowStart: 0, colStart: 6, rows: 4, cols: 5 },
+    { name: 'Phase 3 - East Avenue', rowStart: 0, colStart: 12, rows: 4, cols: 5 },
+    { name: 'Phase 4 - Central Court', rowStart: 5, colStart: 0, rows: 4, cols: 5 },
+    { name: 'Phase 5 - South Reserve', rowStart: 5, colStart: 6, rows: 4, cols: 5 },
+    { name: 'Phase 6 - Executive Crest', rowStart: 5, colStart: 12, rows: 4, cols: 5 },
   ];
 
-  return plotConfigs.map((cfg) => {
-    const lat = 17.247 + cfg.latOff;
-    const lng = 78.450 + cfg.lngOff;
-    const width = 0.0008;
-    const height = 0.0006;
+  sectorLayouts.forEach((sec) => {
+    for (let r = 0; r < sec.rows; r++) {
+      for (let c = 0; c < sec.cols; c++) {
+        const absRow = sec.rowStart + r;
+        const absCol = sec.colStart + c;
 
-    return {
-      id: `plot-${cfg.number}`,
-      number: cfg.number,
-      sector: cfg.sector,
-      status: cfg.status,
-      facing: cfg.facing,
-      road: cfg.road,
-      area: cfg.area,
-      price: cfg.price,
-      type: cfg.type,
-      coordinates: [[lat, lng], [lat + height, lng], [lat + height, lng + width], [lat, lng + width]],
-      x3d: cfg.x3d,
-      z3d: cfg.z3d,
-      w3d: 55,
-      d3d: 45,
-    };
+        const lat = baseLat + absRow * (plotHeight + gapLat);
+        const lng = baseLng + absCol * (plotWidth + gapLng);
+
+        // Side-by-side plot coordinates polygon
+        const coords: [number, number][] = [
+          [lat, lng],
+          [lat + plotHeight, lng],
+          [lat + plotHeight, lng + plotWidth],
+          [lat, lng + plotWidth],
+        ];
+
+        const statusIdx = (plotNum * 7 + r * 3 + c) % statuses.length;
+        const facingIdx = (r + c) % facings.length;
+        const roadIdx = r % roads.length;
+        const typeIdx = (c === 0 || c === sec.cols - 1) ? 1 : (r % 3 === 0) ? 2 : 0;
+        const area = 1500 + ((r + c) % 4) * 200;
+        const price = Math.round((area * 3200 + (typeIdx === 2 ? 500000 : 0)) / 10000) * 10000;
+
+        plots.push({
+          id: `plot-${plotNum}`,
+          number: plotNum,
+          sector: sec.name,
+          status: statuses[statusIdx],
+          facing: facings[facingIdx],
+          road: roads[roadIdx],
+          area,
+          price,
+          type: plotTypes[typeIdx],
+          coordinates: coords,
+          x3d: -180 + absCol * 22,
+          z3d: -140 + absRow * 32,
+          w3d: 18,
+          d3d: 26,
+        });
+
+        plotNum++;
+      }
+    }
   });
+
+  return plots;
 }
 
 const allPlots = generatePlots();
@@ -129,30 +157,14 @@ const initials = (name: string) => name.split(' ').map((part) => part[0]).slice(
 
 function MapControls({ expanded, onToggleExpanded, mapCenter }: { expanded: boolean; onToggleExpanded: () => void; mapCenter: LatLngExpression }) {
   const map = useMap();
-  const locate = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.setView([coords.latitude, coords.longitude], 15), () => map.setView(mapCenter, 16));
-  return <div className="absolute right-4 top-4 z-[500] flex flex-col gap-2"><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={() => map.zoomIn()} aria-label="Zoom in" data-testid="button-map-zoom-in" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Plus size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.zoomOut()} aria-label="Zoom out" data-testid="button-map-zoom-out" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Minus size={16} /></button></div><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={locate} aria-label="Locate me" data-testid="button-map-locate" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><LocateFixed size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.setView(mapCenter, 16)} aria-label="Reset map" data-testid="button-map-reset" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><RotateCcw size={15} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={onToggleExpanded} aria-label="Toggle fullscreen map" data-testid="button-map-fullscreen" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100">{expanded ? <Minimize2 size={15} /> : <Eye size={15} />}</button></div></div>;
+  const locate = () => navigator.geolocation?.getCurrentPosition(({ coords }) => map.setView([coords.latitude, coords.longitude], 17), () => map.setView(mapCenter, 17));
+  return <div className="absolute right-4 top-4 z-[500] flex flex-col gap-2"><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={() => map.zoomIn()} aria-label="Zoom in" data-testid="button-map-zoom-in" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Plus size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.zoomOut()} aria-label="Zoom out" data-testid="button-map-zoom-out" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><Minus size={16} /></button></div><div className="overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-lg backdrop-blur-sm"><button type="button" onClick={locate} aria-label="Locate me" data-testid="button-map-locate" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><LocateFixed size={16} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={() => map.setView(mapCenter, 17)} aria-label="Reset map" data-testid="button-map-reset" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100"><RotateCcw size={15} /></button><div className="mx-2 border-t border-slate-200" /><button type="button" onClick={onToggleExpanded} aria-label="Toggle fullscreen map" data-testid="button-map-fullscreen" className="flex h-9 w-9 items-center justify-center text-[#162943] hover:bg-slate-100">{expanded ? <Minimize2 size={15} /> : <Eye size={15} />}</button></div></div>;
 }
 
 function StatusBadge({ status }: { status: PlotStatus }) {
   const meta = statusMeta[status];
   return <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.08em]" style={{ backgroundColor: `${meta.fill}40`, color: meta.ink }}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: meta.stroke }} />{meta.label}</span>;
 }
-
-// Approach road coordinates from main highway to layout venture
-const approachRoadCoords: [number, number][] = [
-  [17.2365, 78.4485],
-  [17.2390, 78.4488],
-  [17.2415, 78.4495],
-  [17.2450, 78.4502],
-  [17.2470, 78.4505],
-];
-
-const internalRoads: { name: string; path: [number, number][] }[] = [
-  { name: "Proposed 150' Main Road", path: [[17.2470, 78.4430], [17.2470, 78.4570]] },
-  { name: "33' Road", path: [[17.2440, 78.4420], [17.2440, 78.4560]] },
-  { name: "Connecting Road", path: [[17.2410, 78.4520], [17.2510, 78.4520]] },
-  { name: "40' Road", path: [[17.2400, 78.4470], [17.2500, 78.4470]] },
-];
 
 function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }: { project: Project; onSelect: (plot: Plot) => void; selected: Plot | null; onClose: () => void; onBook: (plot: Plot) => void; onEnquire: (plot: Plot) => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -208,22 +220,10 @@ function MapExplorer({ project, onSelect, selected, onClose, onBook, onEnquire }
       ) : (
         <div className={`grid overflow-hidden rounded-[22px] border border-slate-200 bg-[#dce7e7] shadow-[0_24px_60px_rgba(22,41,67,.13)] lg:grid-cols-[minmax(0,1fr)_320px] ${expanded ? 'h-[calc(100dvh-32px)]' : ''}`}>
           <div className={`map-shell relative min-h-[580px] ${expanded ? 'min-h-0' : 'h-[min(72vh,740px)]'}`}>
-            <MapContainer center={center} zoom={16} scrollWheelZoom className="h-full min-h-[580px] w-full">
+            <MapContainer center={center} zoom={17} scrollWheelZoom className="h-full min-h-[580px] w-full">
               <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className={satellite ? 'satellite-mock' : ''} />
               <MapControls expanded={expanded} onToggleExpanded={() => setExpanded(!expanded)} mapCenter={center} />
               
-              {/* Approach Road from Nearby Main Highway */}
-              <Polyline positions={approachRoadCoords} pathOptions={{ color: '#18181b', weight: 12, opacity: 0.9 }} />
-              <Polyline positions={approachRoadCoords} pathOptions={{ color: '#fef08a', weight: 2, dashArray: '8, 8', opacity: 0.95 }} />
-
-              {/* Internal Sector Roads */}
-              {internalRoads.map((rd) => (
-                <Fragment key={rd.name}>
-                  <Polyline positions={rd.path} pathOptions={{ color: '#27272a', weight: 8, opacity: 0.85 }} />
-                  <Polyline positions={rd.path} pathOptions={{ color: '#ffffff', weight: 1.5, dashArray: '6, 6', opacity: 0.9 }} />
-                </Fragment>
-              ))}
-
               {filtered.map((plot) => {
                 const meta = statusMeta[plot.status];
                 const active = selected?.id === plot.id;
